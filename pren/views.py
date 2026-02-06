@@ -3,6 +3,10 @@ from .models import Piscina
 
 def home(request):
     piscina = Piscina.objects.first()
-    return render(request, "pren/home.html", {"piscina": piscina})
+    sdrai = piscina.sdrai.all() if piscina else []
+    return render(request, "pren/home.html", {
+        "piscina": piscina,
+        "sdrai": sdrai,
+        })
 
 
