@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-
 @dataclass
 class SdraioRilevato:
     x_percentuale: float
@@ -9,6 +8,7 @@ class SdraioRilevato:
     classe: str
 
 def rileva_sdrai_da_immagine(percorso_immagine: str):
+    
     """
     Versione di test:
     ritorna sdrai finti per verificare la pipeline.

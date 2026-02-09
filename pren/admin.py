@@ -13,7 +13,8 @@ class ImmaginePiscinaAdmin(admin.ModelAdmin):
 
 @admin.register(Sdraio)
 class SdraioAdmin(admin.ModelAdmin):
-    list_display = ("id", "piscina", "etichetta", "x_percentuale", "y_percentuale")
+    list_display = ("id", "piscina", "etichetta", "x_percentuale", "y_percentuale", "origine")
     list_filter = ("piscina",)
     search_fields = ("etichetta",)
+    readonly_fields = ("origine",)
 

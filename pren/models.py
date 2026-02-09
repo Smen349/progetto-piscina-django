@@ -23,6 +23,11 @@ class ImmaginePiscina(models.Model):
     
 
 class Sdraio(models.Model):
+    ORIGINE_SCELTE = [
+        ("AI", "Rilevamento automatico"),
+        ("MANUALE", "Inserito manualmente"),
+    ]
+
     piscina = models.ForeignKey(
         Piscina,
         on_delete=models.CASCADE,
@@ -39,6 +44,12 @@ class Sdraio(models.Model):
     y_percentuale = models.FloatField(
         validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
         default=0.0
+    )
+
+    origine = models.CharField(
+        max_length=10,
+        choices=ORIGINE_SCELTE,
+        default="MANUALE",
     )
 
     def __str__(self):
