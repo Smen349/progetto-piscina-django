@@ -1,5 +1,5 @@
 console.log("overlay_piscina.js caricato");
-
+ 
 function aggiornaOverlay() {
     const area = document.querySelector(".area-piscina");
     const img = document.getElementById("img-piscina");
@@ -46,3 +46,92 @@ function aggiornaOverlay() {
 
 window.addEventListener("load", aggiornaOverlay);
 window.addEventListener("resize", aggiornaOverlay);
+
+
+let sdraioSelezionata = null;
+
+document.addEventListener("click", function (e){
+    const sdraio = e.target.closest(".sdraio");
+    const overlay = document.getElementById("overlay-piscina")
+
+    if (sdraio && overlay.contains(sdraio)) {
+        e.stopPropagation();
+
+        if (sdraioSelezionata) {
+            sdraioSelezionata.classList.remove("selezionata");
+        }
+
+        sdraioSelezionata = sdraio;
+        sdraioSelezionata.classList.add("selezionata");
+
+        console.log(
+            "Sdraio selezionata: ",
+            sdraioSelezionata.dataset.id
+        );
+        return;
+    }
+
+    if (sdraioSelezionata) {
+        sdraioSelezionata.classList.remove("selezionata");
+        sdraioSelezionata = null;
+        console.log("Deselezionata");
+    }
+})
+
+
+let dragging = false;
+
+document.addEventListener("mousedown", function (e) {
+    if(!sdraioSelezionata) return;
+    if (!sdraioSelezionata.contains(e.target)) return;
+
+    e.preventDefault();
+    dragging = true;
+
+    sdraioSelezionata.style.cursor = "grabbing";
+});
+
+document.addEventListener("mousemove", function (e) {
+    if(!dragging || !sdraioSelezionata) return;
+
+    const overlay = document.getElementById("overlay-piscina");
+    const rect = overlay.getBoundingClientRect();
+
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+
+    x = Math.max(0, Math.min(x, rect.width));
+    y = Math.max(0, Math.min(y, rect.height));
+
+    sdraioSelezionata.style.left = x + "px";
+    sdraioSelezionata.style.top = y + "px";
+
+});
+
+document.addEventListener("mouseup", function () {
+    if (!dragging) return;
+
+    dragging = false;
+
+    const overlay = document.getElementById("overlay-piscina");
+    const rect = overlay.getBoundingClientRect();
+    console.log("Overlay (px):", rect.width, rect.height);
+
+    const leftPX = parseFloat(sdraioSelezionata.style.left);
+    const topPX = parseFloat(sdraioSelezionata.style.top);
+
+    console.log("Posizione sdraio (px):", leftPX, topPX);
+
+    const xPercentuale = (leftPX / rect.width) * 100;
+    console.log("x_percentuale:", xPercentuale);
+
+    const yPercentuale = (topPX / rect.height) * 100;
+    console.log("y_percentuale:", yPercentuale);
+
+
+    if (sdraioSelezionata) {
+        sdraioSelezionata.style.cursor = "grab";
+    }
+
+    console.log("Drag terminato");
+});
