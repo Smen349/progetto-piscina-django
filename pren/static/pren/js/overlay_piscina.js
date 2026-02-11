@@ -1,4 +1,17 @@
-console.log("overlay_piscina.js caricato");
+
+function getCSRFToken() {
+    const name = "csrftoken";
+    const cookies = document.cookie.split(";");
+
+    for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + "=")) {
+            return cookie.substring(name.length + 1);
+        }
+    }
+    return null;
+}
+
  
 function aggiornaOverlay() {
     const area = document.querySelector(".area-piscina");
@@ -115,19 +128,39 @@ document.addEventListener("mouseup", function () {
 
     const overlay = document.getElementById("overlay-piscina");
     const rect = overlay.getBoundingClientRect();
-    console.log("Overlay (px):", rect.width, rect.height);
+    //console.log("Overlay (px):", rect.width, rect.height);
 
     const leftPX = parseFloat(sdraioSelezionata.style.left);
     const topPX = parseFloat(sdraioSelezionata.style.top);
 
-    console.log("Posizione sdraio (px):", leftPX, topPX);
+    //console.log("Posizione sdraio (px):", leftPX, topPX);
 
     const xPercentuale = (leftPX / rect.width) * 100;
-    console.log("x_percentuale:", xPercentuale);
-
+    //console.log("x_percentuale:", xPercentuale);
     const yPercentuale = (topPX / rect.height) * 100;
-    console.log("y_percentuale:", yPercentuale);
+    //console.log("y_percentuale:", yPercentuale);
 
+    const id = sdraioSelezionata.dataset.id;
+
+    fetch(`/sdrai/${id}/aggiorna/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken()
+        },
+        body: JSON.stringify({
+            x_percentuale: xPercentuale,
+            y_percentuale: yPercentuale
+        })
+    })
+
+    .then(response => response.json())
+    .then(data => {
+        console.log("Risposta backend", data);
+    })
+    .catch(error => {
+        console.error("Errore fetch:", error);
+    });
 
     if (sdraioSelezionata) {
         sdraioSelezionata.style.cursor = "grab";
