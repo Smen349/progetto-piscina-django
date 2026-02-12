@@ -11,9 +11,16 @@ class SdraioRilevato:
 
 def rileva_sdrai_da_immagine(percorso_immagine: str):
 
+    SOGLIA_CONF = 0.20
+    CLASSI_OK = {"chair", "bench"}
+
     model = YOLO("yolov8n.pt")
     results = model(percorso_immagine)
     #print("YOLO detections:", len(results[0].boxes))
+
+    scartate_conf = 0
+    scartate_classe = 0
+    accettate = 0
 
     import cv2
 
@@ -26,8 +33,14 @@ def rileva_sdrai_da_immagine(percorso_immagine: str):
     for box in results[0].boxes:
         x1, y1, x2, y2 = box.xyxy[0]
         conf = float(box.conf[0])
+        if conf < SOGLIA_CONF:
+            scartate_conf += 1
+            continue
         cls_id = int(box.cls[0])
         nome_classe = results[0].names[cls_id]
+        if nome_classe not in CLASSI_OK:
+            scartate_classe += 1
+            continue
 
         #print("BBox:", x1, y1, x2, y2, "conf:", conf, "classe", nome_classe)
 
@@ -49,5 +62,14 @@ def rileva_sdrai_da_immagine(percorso_immagine: str):
                 classe=nome_classe,
             )
         )
+
+        accettate += 1
+
+    print("Riepilogo YOLO:",
+          "totali=", len(results[0].boxes),
+          "scartate_conf=", scartate_conf,
+          "scartate_classe=", scartate_classe,
+          "accettate=", accettate)
+
 
     return rilevati
