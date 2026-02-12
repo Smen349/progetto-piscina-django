@@ -9,17 +9,19 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("piscina_id", type=int)
         parser.add_argument("--pulisci", action="store_true", help="Cancella gli sdrai esistenti prima di crearli")
-        parser.add_argument("--solo-stampa", action="store_true", help="Non salva nel DB, stampa soltanto") 
+        parser.add_argument("--solo-stampa", action="store_true", help="Non salva nel DB, stampa soltanto")
+        parser.add_argument("--conf", type=float, default=0.20, help="Soglia minima confidenza YOLO")
 
     def handle(self, *args, **options):
         piscina_id = options["piscina_id"]
         pulisci = options["pulisci"]
         solo_stampa = options["solo_stampa"]
+        conf = options["conf"]
 
         piscina = Piscina.objects.get(id=piscina_id)
 
         percorso_img = piscina.immagine.immagine.path
-        sdrai = rileva_sdrai_da_immagine(percorso_img)
+        sdrai = rileva_sdrai_da_immagine(percorso_img, conf_min=conf)
 
         self.stdout.write(self.style.SUCCESS(
             f"Trovati {len(sdrai)} sdrai"
@@ -40,6 +42,13 @@ class Command(BaseCommand):
 
         creati = 0
         for idx, s in enumerate(sdrai, start=1):
+            esiste = Sdraio.objects.filter(
+                piscina=piscina,
+                origine="AI",
+                x_percentuale__range=(s.x_percentuale - 1, s.x_percentuale + 1),
+                y_percentuale__range=(s.y_percentuale - 1, s.y_percentuale + 1),
+            ).exists()
+
             Sdraio.objects.create(
                 piscina=piscina,
                 etichetta=f"AI-{idx}",

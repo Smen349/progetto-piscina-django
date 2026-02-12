@@ -6,7 +6,7 @@ import json
 
 
 def home(request):
-    piscina = Piscina.objects.last()
+    piscina = Piscina.objects.filter(attiva=True).first() or Piscina.objects.last()
     sdrai = piscina.sdrai.all() if piscina else []
     return render(request, "pren/home.html", {
         "piscina": piscina,

@@ -9,9 +9,8 @@ class SdraioRilevato:
     confidenza: float
     classe: str
 
-def rileva_sdrai_da_immagine(percorso_immagine: str):
+def rileva_sdrai_da_immagine(percorso_immagine: str, conf_min: float = 0.20):
 
-    SOGLIA_CONF = 0.20
     CLASSI_OK = {"chair", "bench"}
 
     model = YOLO("yolov8n.pt")
@@ -33,7 +32,7 @@ def rileva_sdrai_da_immagine(percorso_immagine: str):
     for box in results[0].boxes:
         x1, y1, x2, y2 = box.xyxy[0]
         conf = float(box.conf[0])
-        if conf < SOGLIA_CONF:
+        if conf < conf_min:
             scartate_conf += 1
             continue
         cls_id = int(box.cls[0])

@@ -3,6 +3,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 
 class Piscina(models.Model):
     nome = models.CharField(max_length=120)
+    attiva = models.BooleanField(default=False)
 
     def __str__(self):
         return self.nome
