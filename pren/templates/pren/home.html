@@ -76,6 +76,15 @@
             transform: translate(-50%, -50%) scale(1.15);
             z-index: 10;
         }
+
+        .sdraio.ai {
+            outline: 2px solid #1e90ff;
+        }
+
+        .sdraio.manuale {
+            outline: 2px solid #2ecc71;
+        }
+
     </style>
 </head>
 
@@ -98,7 +107,8 @@
 
         <div id="overlay-piscina" class="overlay">
             {% for sdraio in sdrai %}
-            <div class="sdraio" data-id="{{ sdraio.id }}"
+            <div class="sdraio {% if sdraio.origine == 'MANUALE' %}manuale{% else %}ai{% endif %}"
+                data-id="{{ sdraio.id }}"
                 style="left: {{ sdraio.x_percentuale }}%; top: {{ sdraio.y_percentuale }}%;"
                 title="{{ sdraio.etichetta|default:'Sdraio' }}">
                 {{ sdraio.etichetta|default:"S" }}

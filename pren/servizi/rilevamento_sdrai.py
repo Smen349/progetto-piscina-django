@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from ultralytics import YOLO
 
-
+ 
 @dataclass
 class SdraioRilevato:
     x_percentuale: float
