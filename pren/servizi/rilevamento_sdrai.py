@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from ultralytics import YOLO
-
+from django.conf import settings
+import os
  
 @dataclass
 class SdraioRilevato:
@@ -11,9 +12,10 @@ class SdraioRilevato:
 
 def rileva_sdrai_da_immagine(percorso_immagine: str, conf_min: float = 0.20):
 
-    CLASSI_OK = {"chair", "bench"}
+    CLASSI_OK = {"sdraio"}
 
-    model = YOLO("yolov8n.pt")
+    MODEL_PATH = os.path.join(settings.BASE_DIR, "pren", "modelli", "best.pt")
+    model = YOLO(MODEL_PATH)
     results = model(percorso_immagine)
     #print("YOLO detections:", len(results[0].boxes))
 
