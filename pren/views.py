@@ -1,15 +1,54 @@
 import json
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
-
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, render, redirect
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-
+from .servizi.rilevamento_sdrai import rileva_sdrai_da_immagine
 from .models import Piscina, Sdraio, DurataDisponibile, Prenotazione
 
+
+@staff_member_required
+def elimina_sdraio(request, sdraio_id):
+    if request.method != "POST":
+        return JsonResponse({"errore": "Metodo non consentito"}, status=405)
+
+    sdraio = get_object_or_404(Sdraio, id=sdraio_id)
+    sdraio.delete()
+    return JsonResponse({"ok": True})
+
+
+@staff_member_required
+def rigenera_sdrai(request, piscina_id):
+    if request.method != "POST":
+        return JsonResponse({"errore": "Metodo non consentito"}, status=405)
+
+    piscina = get_object_or_404(Piscina, id=piscina_id)
+
+    if not hasattr(piscina, "immagine") or not piscina.immagine.immagine:
+        return JsonResponse({"errore": "Nessuna immagine associata"}, status=400)
+
+    percorso_img = piscina.immagine.immagine.path
+
+    # 🔥 Cancella TUTTI gli sdrai (anche manuali)
+    Sdraio.objects.filter(piscina=piscina).delete()
+
+    # Rilevamento
+    sdrai_rilevati = rileva_sdrai_da_immagine(percorso_img, conf_min=0.30)
+
+    for idx, s in enumerate(sdrai_rilevati, start=1):
+        Sdraio.objects.create(
+            piscina=piscina,
+            x_percentuale=s.x_percentuale,
+            y_percentuale=s.y_percentuale,
+            origine="AI",
+            etichetta=f"AI-{idx}"
+        )
+
+    return JsonResponse({"ok": True, "creati": len(sdrai_rilevati)})
 
 def home(request):
     # Piscina attiva (fallback: ultima)

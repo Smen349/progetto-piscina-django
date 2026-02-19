@@ -68,6 +68,7 @@
             place-items: center;
             box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
             user-select: none;
+            cursor: grab;
         }
 
         .sdraio.selezionata {
@@ -96,12 +97,23 @@
         <p>Nessuna piscina creata</p>
         {% endif %}
 
+        {% if can_drag %}
+            <form id="form-rigenera" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="button" id="btn-rigenera">
+                    Rileva sdrai (AI)
+                </button>
+            </form>
+        {% endif %}
+
+
         <div>
         {% if user.is_authenticated %}
             <span>Ciao, {{ user.username }}</span>
 
             <form action="{% url 'logout' %}" method="post" style="display:inline;">
                 {% csrf_token %}
+
                 <button type="submit">Logout</button>
             </form>
             {% else %}
@@ -156,10 +168,24 @@
     <p>Nessuna immagine caricata per questa piscina</p>
     {% endif %}
 
+    {% if can_drag %}
+        <div id="trash-area" style="
+            height:60px;
+            background:#ffdddd;
+            border:2px dashed red;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-weight:bold;
+        ">
+            Trascina qui uno sdraio per eliminarlo
+        </div>
+    {% endif %}
 
     <script>
         window.CAN_DRAG = {{ can_drag|yesno:"true,false" }};
         window.CAN_BOOK = {{ can_book|yesno:"true,false" }};
+        window.PISCINA_ID = {{ piscina.id }};
     </script>
 
     <script src="{% static 'pren/js/overlay_piscina.js' %}"></script>

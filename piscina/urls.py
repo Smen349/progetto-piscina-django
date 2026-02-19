@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from pren.views import home, aggiorna_sdraio, prenota_sdraio
+from pren.views import home, aggiorna_sdraio, prenota_sdraio, rigenera_sdrai, elimina_sdraio
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -15,6 +15,8 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("sdrai/<int:sdraio_id>/aggiorna/", aggiorna_sdraio, name="aggiorna_sdraio"),
     path("prenota/<int:sdraio_id>/", prenota_sdraio, name="prenota_sdraio"),
+    path("rigenera/<int:piscina_id>/", rigenera_sdrai, name="rigenera_sdrai"),
+    path("sdrai/<int:sdraio_id>/elimina/", elimina_sdraio, name="elimina_sdraio"),
 ]
 
 

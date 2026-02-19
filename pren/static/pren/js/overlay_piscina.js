@@ -1,131 +1,219 @@
-let sdraioSelezionata = null;
-let dragging = false;
+console.log("overlay_piscina.js caricato ", {
+  CAN_DRAG: window.CAN_DRAG,
+  CAN_BOOK: window.CAN_BOOK,
+  PISCINA_ID: window.PISCINA_ID,
+});
 
-// Permessi passati dal template
 const CAN_DRAG = window.CAN_DRAG === true;
 const CAN_BOOK = window.CAN_BOOK === true;
 
-// ===== Selezione =====
-document.addEventListener("click", function (e) {
-    const nuova = e.target.closest(".sdraio");
+let dragging = false;
+let activeEl = null;
 
-    if (sdraioSelezionata && sdraioSelezionata !== nuova) {
-        sdraioSelezionata.classList.remove("selezionata");
-    }
+function getCSRFToken() {
+  const cookieValue = document.cookie.split("; ").find((row) => row.startsWith("csrftoken="));
+  return cookieValue ? cookieValue.split("=")[1] : "";
+}
 
-    if (nuova) {
-        sdraioSelezionata = nuova;
-        sdraioSelezionata.classList.add("selezionata");
-    } else {
-        if (sdraioSelezionata) {
-            sdraioSelezionata.classList.remove("selezionata");
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function salvaPosizione(el) {
+  if (!el) return;
+  const leftPercent = parseFloat(el.style.left);
+  const topPercent = parseFloat(el.style.top);
+
+  fetch(`/sdrai/${el.dataset.id}/aggiorna/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+    body: JSON.stringify({ x_percentuale: leftPercent, y_percentuale: topPercent }),
+  }).catch(() => {});
+}
+
+function eliminaSdraio(id) {
+  return fetch(`/sdrai/${id}/elimina/`, {
+    method: "POST",
+    headers: { "X-CSRFToken": getCSRFToken() },
+  });
+}
+
+function rigeneraSdrai() {
+  if (!window.PISCINA_ID) {
+    alert("Errore: PISCINA_ID non definito.");
+    return;
+  }
+  return fetch(`/rigenera/${window.PISCINA_ID}/`, {
+    method: "POST",
+    headers: { "X-CSRFToken": getCSRFToken() },
+  }).then(async (r) => {
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const overlay = document.getElementById("overlay-piscina");
+  if (!overlay) return;
+
+  const sdrai = overlay.querySelectorAll(".sdraio");
+  sdrai.forEach((el) => {
+    el.style.userSelect = "none";
+    el.style.touchAction = "none";
+    if (CAN_DRAG) el.style.cursor = "grab";
+  });
+
+  // ===== Pulsante admin: rigenera sdrai =====
+  if (CAN_DRAG) {
+    const btn = document.getElementById("btn-rigenera");
+    if (btn) {
+      btn.addEventListener("click", async () => {
+        const ok = confirm("Vuoi cancellare TUTTI gli sdrai e rigenerarli con AI?");
+        if (!ok) return;
+
+        try {
+          const data = await rigeneraSdrai();
+          alert(`Rigenerazione completata \nCreati: ${data.creati ?? "?"}`);
+          location.reload();
+        } catch (e) {
+          alert("Errore rigenerazione: " + e.message);
         }
-        sdraioSelezionata = null;
+      });
     }
-});
+  }
 
-// ===== Drag & Drop (solo admin) =====
-document.addEventListener("mousedown", function (e) {
-    if (!CAN_DRAG) return;
-    if (!sdraioSelezionata) return;
-    if (!sdraioSelezionata.contains(e.target)) return;
+  // ===== DRAG immediato (admin) con Pointer Events =====
+  if (CAN_DRAG && "PointerEvent" in window) {
+    sdrai.forEach((el) => {
+      el.addEventListener("pointerdown", (e) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
 
-    dragging = true;
+        e.preventDefault();
+        e.stopPropagation();
 
-    function onMouseMove(e) {
-        const overlay = document.getElementById("overlay-piscina");
+        activeEl = el;
+        dragging = true;
+
+        // selezione visiva
+        sdrai.forEach((x) => x.classList.remove("selezionata"));
+        activeEl.classList.add("selezionata");
+
+        activeEl.style.cursor = "grabbing";
+        document.body.style.userSelect = "none";
+
+        // cattura puntatore
+        try {
+          activeEl.setPointerCapture(e.pointerId);
+        } catch (_) {}
+
         const rect = overlay.getBoundingClientRect();
 
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const moveTo = (cx, cy) => {
+          const x = cx - rect.left;
+          const y = cy - rect.top;
 
-        sdraioSelezionata.style.left = (x / rect.width) * 100 + "%";
-        sdraioSelezionata.style.top = (y / rect.height) * 100 + "%";
-    }
+          let left = (x / rect.width) * 100;
+          let top = (y / rect.height) * 100;
 
-    function onMouseUp() {
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
+          left = clamp(left, 0, 100);
+          top = clamp(top, 0, 100);
 
-        // delay per evitare che il dblclick parta subito dopo drag
-        setTimeout(() => {
+          activeEl.style.left = left.toFixed(4) + "%";
+          activeEl.style.top = top.toFixed(4) + "%";
+        };
+
+        const onMove = (ev) => {
+          ev.preventDefault();
+          moveTo(ev.clientX, ev.clientY);
+        };
+
+        const onUp = async (ev) => {
+          ev.preventDefault();
+
+          activeEl.removeEventListener("pointermove", onMove);
+          activeEl.removeEventListener("pointerup", onUp);
+          activeEl.removeEventListener("pointercancel", onUp);
+
+          try {
+            activeEl.releasePointerCapture(ev.pointerId);
+          } catch (_) {}
+
+          document.body.style.userSelect = "";
+
+          // controlla cestino
+          const trash = document.getElementById("trash-area");
+          if (trash) {
+            const tr = trash.getBoundingClientRect();
+            const inTrash =
+              ev.clientX >= tr.left &&
+              ev.clientX <= tr.right &&
+              ev.clientY >= tr.top &&
+              ev.clientY <= tr.bottom;
+
+            if (inTrash) {
+              try {
+                await eliminaSdraio(activeEl.dataset.id);
+                location.reload();
+                return;
+              } catch (_) {
+                alert("Errore eliminazione sdraio.");
+              }
+            }
+          }
+
+          activeEl.style.cursor = "grab";
+
+          // evita dblclick “fantasma”
+          setTimeout(() => {
             dragging = false;
-        }, 150);
+          }, 180);
 
-        salvaPosizione(sdraioSelezionata);
-    }
+          salvaPosizione(activeEl);
+          activeEl = null;
+        };
 
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-});
-
-// ===== Salvataggio posizione =====
-function salvaPosizione(elemento) {
-    const overlay = document.getElementById("overlay-piscina");
-    const rect = overlay.getBoundingClientRect();
-
-    const leftPercent = parseFloat(elemento.style.left);
-    const topPercent = parseFloat(elemento.style.top);
-
-    fetch(`/sdrai/${elemento.dataset.id}/aggiorna/`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCSRFToken()
-        },
-        body: JSON.stringify({
-            x_percentuale: leftPercent,
-            y_percentuale: topPercent
-        })
+        activeEl.addEventListener("pointermove", onMove);
+        activeEl.addEventListener("pointerup", onUp);
+        activeEl.addEventListener("pointercancel", onUp);
+      });
     });
-}
+  }
 
-// ===== Prenotazione (solo utenti normali) =====
-document.addEventListener("dblclick", function (e) {
-    if (!CAN_BOOK) return;
-    if (dragging) return;
+  // ===== PRENOTAZIONE (utente normale) =====
+  if (CAN_BOOK) {
+    overlay.addEventListener("dblclick", (e) => {
+      if (dragging) return;
 
-    const sdraio = e.target.closest(".sdraio");
-    if (!sdraio) return;
+      const sdraio = e.target.closest(".sdraio");
+      if (!sdraio) return;
 
-    const tipoDurata = document.getElementById("tipo_durata")?.value;
-    const inizio = document.getElementById("inizio")?.value;
+      e.preventDefault();
+      e.stopPropagation();
 
-    if (!tipoDurata || !inizio) {
+      const tipoDurata = document.getElementById("tipo_durata")?.value;
+      const inizio = document.getElementById("inizio")?.value;
+
+      if (!tipoDurata || !inizio) {
         alert("Seleziona durata e data/ora prima di prenotare.");
         return;
-    }
+      }
 
-    fetch(`/prenota/${sdraio.dataset.id}/`, {
+      fetch(`/prenota/${sdraio.dataset.id}/`, {
         method: "POST",
         headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "X-CSRFToken": getCSRFToken()
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "X-CSRFToken": getCSRFToken(),
         },
-        body: new URLSearchParams({
-            tipo_durata: tipoDurata,
-            inizio: inizio
+        body: new URLSearchParams({ tipo_durata: tipoDurata, inizio }),
+      })
+        .then((resp) => resp.ok ? resp.text() : resp.text().then((t) => { throw new Error(t); }))
+        .then(() => {
+          alert("Prenotazione salvata");
+          location.reload();
         })
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.text().then(text => { throw new Error(text); });
-        }
-        return response.text();
-    })
-    .then(() => {
-        alert("Prenotazione salvata");
-        location.reload();
-    })
-    .catch(error => {
-        alert("Errore prenotazione: " + error.message);
+        .catch((err) => {
+          alert("Errore prenotazione: " + err.message);
+        });
     });
+  }
 });
-
-// ===== CSRF =====
-function getCSRFToken() {
-    const cookieValue = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('csrftoken='));
-    return cookieValue ? cookieValue.split('=')[1] : '';
-}
