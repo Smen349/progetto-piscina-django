@@ -8,7 +8,6 @@
     <title>Home Piscina</title>
     <link rel="icon" href="{% static 'pren/favicon.ico' %}">
 
-
     <style>
         html,
         body {
@@ -84,7 +83,6 @@
         .sdraio.manuale {
             outline: 2px solid #2ecc71;
         }
-
     </style>
 </head>
 
@@ -97,8 +95,45 @@
         {% else %}
         <p>Nessuna piscina creata</p>
         {% endif %}
+
+        <div>
+        {% if user.is_authenticated %}
+            <span>Ciao, {{ user.username }}</span>
+
+            <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit">Logout</button>
+            </form>
+            {% else %}
+            <a href="{% url 'login' %}">Login</a>
+            <a href="{% url 'signup' %}">Registrati</a>
+        {% endif %}
+
+        </div>
+
     </header>
 
+    {% if piscina and can_book%}
+    <div style="padding: 10px; background: #ffffffc7; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <div>
+            <label for="tipo_durata"><b>Durata</b></label><br>
+            <select id="tipo_durata">
+                {% for d in durate %}
+                <option value="{{ d.tipo }}">{{ d.get_tipo_display }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="inizio"><b>Inizio</b></label><br>
+            <input id="inizio" type="datetime-local">
+        </div>
+
+        <div style="opacity:.8;">
+            Doppio click su uno sdraio per prenotare
+        </div>
+    </div>
+    {% endif %}
 
     {% if piscina.immagine %}
     <div class="area-piscina">
@@ -122,20 +157,10 @@
     {% endif %}
 
 
-    <h3>Lista sdrai:</h3>
-
-    {% if sdrai %}
-    <ul>
-        {% for sdraio in sdrai %}
-        <li>
-            {{ sdraio.etichetta|default:"Sdraio" }}
-            (x: {{ sdraio.x_percentuale }}%, y: {{ sdraio.y_percentuale }}%)
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p>Nessuno sdraio presente</p>
-    {% endif %}
+    <script>
+        window.CAN_DRAG = {{ can_drag|yesno:"true,false" }};
+        window.CAN_BOOK = {{ can_book|yesno:"true,false" }};
+    </script>
 
     <script src="{% static 'pren/js/overlay_piscina.js' %}"></script>
 

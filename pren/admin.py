@@ -1,5 +1,18 @@
 from django.contrib import admin
-from .models import Piscina, ImmaginePiscina, Sdraio
+from .models import Piscina, ImmaginePiscina, Sdraio, DurataDisponibile, Prenotazione
+
+
+@admin.register(DurataDisponibile)
+class DurataDisponibileAdmin(admin.ModelAdmin):
+    list_display = ("id", "piscina", "tipo", "attiva")
+    list_filter = ("piscina", "attiva", "tipo")
+
+@admin.register(Prenotazione)
+class PrenotazioneAdmin(admin.ModelAdmin):
+    list_display = ("id", "utente", "piscina", "sdraio", "tipo_durata", "inizio", "fine", "creata_il")
+    list_filter = ("piscina", "tipo_durata")
+    ordering = ("-creata_il",)
+
 
 @admin.register(Piscina)
 class PiscinaAdmin(admin.ModelAdmin):

@@ -12,10 +12,9 @@ class SdraioRilevato:
 
 def rileva_sdrai_da_immagine(percorso_immagine: str, conf_min: float = 0.20):
 
-    CLASSI_OK = {"sdraio"}
+    CLASSI_OK = {"sdraio", "bench", "chair", "couch"} 
 
-    MODEL_PATH = os.path.join(settings.BASE_DIR, "pren", "modelli", "best.pt")
-    model = YOLO(MODEL_PATH)
+    model = YOLO("yolov8s.pt")
     results = model(percorso_immagine)
     #print("YOLO detections:", len(results[0].boxes))
 

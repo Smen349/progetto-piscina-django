@@ -1,170 +1,131 @@
-
-function getCSRFToken() {
-    const name = "csrftoken";
-    const cookies = document.cookie.split(";");
-
-    for (let cookie of cookies) {
-        cookie = cookie.trim();
-        if (cookie.startsWith(name + "=")) {
-            return cookie.substring(name.length + 1);
-        }
-    }
-    return null;
-}
-
- 
-function aggiornaOverlay() {
-    const area = document.querySelector(".area-piscina");
-    const img = document.getElementById("img-piscina");
-    const overlay = document.getElementById("overlay-piscina");
-
-    // Sicurezze
-    if (!area || !img || !overlay) return;
-    if (!img.naturalWidth || !img.naturalHeight) return;
-
-    // Dimensioni contenitore
-    const areaW = area.clientWidth;
-    const areaH = area.clientHeight;
-
-    // Dimensioni reali immagine
-    const imgW = img.naturalWidth;
-    const imgH = img.naturalHeight;
-
-    // Rapporti
-    const ratioArea = areaW / areaH;
-    const ratioImg = imgW / imgH;
-
-    let disegnataW, disegnataH;
-    let offsetX = 0;
-    let offsetY = 0;
-
-    if (ratioArea > ratioImg) {
-        // contenitore più largo → immagine limitata dall’altezza
-        disegnataH = areaH;
-        disegnataW = areaH * ratioImg;
-        offsetX = (areaW - disegnataW) / 2;
-    } else {
-        // contenitore più stretto → immagine limitata dalla larghezza
-        disegnataW = areaW;
-        disegnataH = areaW / ratioImg;
-        offsetY = (areaH - disegnataH) / 2;
-    }
-
-    // Applico all’overlay
-    overlay.style.width = disegnataW + "px";
-    overlay.style.height = disegnataH + "px";
-    overlay.style.left = offsetX + "px";
-    overlay.style.top = offsetY + "px";
-}
-
-window.addEventListener("load", aggiornaOverlay);
-window.addEventListener("resize", aggiornaOverlay);
-
-
 let sdraioSelezionata = null;
+let dragging = false;
 
-document.addEventListener("click", function (e){
-    const sdraio = e.target.closest(".sdraio");
-    const overlay = document.getElementById("overlay-piscina")
+// Permessi passati dal template
+const CAN_DRAG = window.CAN_DRAG === true;
+const CAN_BOOK = window.CAN_BOOK === true;
 
-    if (sdraio && overlay.contains(sdraio)) {
-        e.stopPropagation();
+// ===== Selezione =====
+document.addEventListener("click", function (e) {
+    const nuova = e.target.closest(".sdraio");
 
+    if (sdraioSelezionata && sdraioSelezionata !== nuova) {
+        sdraioSelezionata.classList.remove("selezionata");
+    }
+
+    if (nuova) {
+        sdraioSelezionata = nuova;
+        sdraioSelezionata.classList.add("selezionata");
+    } else {
         if (sdraioSelezionata) {
             sdraioSelezionata.classList.remove("selezionata");
         }
-
-        sdraioSelezionata = sdraio;
-        sdraioSelezionata.classList.add("selezionata");
-
-        console.log(
-            "Sdraio selezionata: ",
-            sdraioSelezionata.dataset.id
-        );
-        return;
-    }
-
-    if (sdraioSelezionata) {
-        sdraioSelezionata.classList.remove("selezionata");
         sdraioSelezionata = null;
-        console.log("Deselezionata");
     }
-})
+});
 
-
-let dragging = false;
-
+// ===== Drag & Drop (solo admin) =====
 document.addEventListener("mousedown", function (e) {
-    if(!sdraioSelezionata) return;
+    if (!CAN_DRAG) return;
+    if (!sdraioSelezionata) return;
     if (!sdraioSelezionata.contains(e.target)) return;
 
-    e.preventDefault();
     dragging = true;
 
-    sdraioSelezionata.style.cursor = "grabbing";
+    function onMouseMove(e) {
+        const overlay = document.getElementById("overlay-piscina");
+        const rect = overlay.getBoundingClientRect();
+
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        sdraioSelezionata.style.left = (x / rect.width) * 100 + "%";
+        sdraioSelezionata.style.top = (y / rect.height) * 100 + "%";
+    }
+
+    function onMouseUp() {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+
+        // delay per evitare che il dblclick parta subito dopo drag
+        setTimeout(() => {
+            dragging = false;
+        }, 150);
+
+        salvaPosizione(sdraioSelezionata);
+    }
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
 });
 
-document.addEventListener("mousemove", function (e) {
-    if(!dragging || !sdraioSelezionata) return;
-
+// ===== Salvataggio posizione =====
+function salvaPosizione(elemento) {
     const overlay = document.getElementById("overlay-piscina");
     const rect = overlay.getBoundingClientRect();
 
-    let x = e.clientX - rect.left;
-    let y = e.clientY - rect.top;
+    const leftPercent = parseFloat(elemento.style.left);
+    const topPercent = parseFloat(elemento.style.top);
 
-    x = Math.max(0, Math.min(x, rect.width));
-    y = Math.max(0, Math.min(y, rect.height));
-
-    sdraioSelezionata.style.left = x + "px";
-    sdraioSelezionata.style.top = y + "px";
-
-});
-
-document.addEventListener("mouseup", function () {
-    if (!dragging) return;
-
-    dragging = false;
-
-    const overlay = document.getElementById("overlay-piscina");
-    const rect = overlay.getBoundingClientRect();
-    //console.log("Overlay (px):", rect.width, rect.height);
-
-    const leftPX = parseFloat(sdraioSelezionata.style.left);
-    const topPX = parseFloat(sdraioSelezionata.style.top);
-
-    //console.log("Posizione sdraio (px):", leftPX, topPX);
-
-    const xPercentuale = (leftPX / rect.width) * 100;
-    //console.log("x_percentuale:", xPercentuale);
-    const yPercentuale = (topPX / rect.height) * 100;
-    //console.log("y_percentuale:", yPercentuale);
-
-    const id = sdraioSelezionata.dataset.id;
-
-    fetch(`/sdrai/${id}/aggiorna/`, {
+    fetch(`/sdrai/${elemento.dataset.id}/aggiorna/`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "X-CSRFToken": getCSRFToken()
         },
         body: JSON.stringify({
-            x_percentuale: xPercentuale,
-            y_percentuale: yPercentuale
+            x_percentuale: leftPercent,
+            y_percentuale: topPercent
         })
-    })
-
-    .then(response => response.json())
-    .then(data => {
-        console.log("Risposta backend", data);
-    })
-    .catch(error => {
-        console.error("Errore fetch:", error);
     });
+}
 
-    if (sdraioSelezionata) {
-        sdraioSelezionata.style.cursor = "grab";
+// ===== Prenotazione (solo utenti normali) =====
+document.addEventListener("dblclick", function (e) {
+    if (!CAN_BOOK) return;
+    if (dragging) return;
+
+    const sdraio = e.target.closest(".sdraio");
+    if (!sdraio) return;
+
+    const tipoDurata = document.getElementById("tipo_durata")?.value;
+    const inizio = document.getElementById("inizio")?.value;
+
+    if (!tipoDurata || !inizio) {
+        alert("Seleziona durata e data/ora prima di prenotare.");
+        return;
     }
 
-    console.log("Drag terminato");
+    fetch(`/prenota/${sdraio.dataset.id}/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": getCSRFToken()
+        },
+        body: new URLSearchParams({
+            tipo_durata: tipoDurata,
+            inizio: inizio
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => { throw new Error(text); });
+        }
+        return response.text();
+    })
+    .then(() => {
+        alert("Prenotazione salvata");
+        location.reload();
+    })
+    .catch(error => {
+        alert("Errore prenotazione: " + error.message);
+    });
 });
+
+// ===== CSRF =====
+function getCSRFToken() {
+    const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='));
+    return cookieValue ? cookieValue.split('=')[1] : '';
+}

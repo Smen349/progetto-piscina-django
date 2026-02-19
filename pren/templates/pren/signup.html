@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Registrazione</title>
+
+  <style>
+    body {
+      margin:0;
+      font-family: system-ui, Arial;
+      background:#f3f5f7;
+    }
+
+    .wrap {
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+
+    .card {
+      width:100%;
+      max-width:420px;
+      background:white;
+      border-radius:16px;
+      padding:24px;
+      box-shadow:0 10px 30px rgba(0,0,0,.08);
+    }
+
+    h1 {
+      margin:0 0 8px;
+      font-size:24px;
+    }
+
+    .sub {
+      margin:0 0 18px;
+      color:#555;
+      font-size:14px;
+    }
+
+    form p {
+      margin:0 0 12px;
+    }
+
+    label {
+      display:block;
+      font-size:13px;
+      margin-bottom:6px;
+      color:#333;
+    }
+
+    input {
+      width:100%;
+      padding:10px 12px;
+      border:1px solid #d7dde3;
+      border-radius:10px;
+      font-size:14px;
+    }
+
+    input:focus {
+      outline:none;
+      border-color:#a3daa8;
+      box-shadow:0 0 0 3px rgba(163,218,168,.25);
+    }
+
+    /* Bottone verde chiaro */
+    .btn {
+      width:100%;
+      margin-top:8px;
+      padding:10px 12px;
+      border:0;
+      border-radius:10px;
+      background:#a3daa8;
+      color:#1e3b24;
+      font-weight:600;
+      cursor:pointer;
+    }
+
+    .btn:hover {
+      filter:brightness(.95);
+    }
+
+    .links {
+      margin-top:14px;
+      font-size:14px;
+      color:#444;
+    }
+
+    a {
+      color:#2c7be5;
+      text-decoration:none;
+    }
+
+    a:hover {
+      text-decoration:underline;
+    }
+
+    .err {
+      background:#ffecec;
+      border:1px solid #ffb4b4;
+      color:#8a1f1f;
+      padding:10px 12px;
+      border-radius:10px;
+      margin:10px 0 14px;
+      font-size:14px;
+    }
+
+    /* Regole password più piccole e meno visibili */
+    ul.errorlist {
+      margin:6px 0 10px;
+      padding-left:18px;
+      color:#8a1f1f;
+      font-size:13px;
+    }
+
+    .helptext,
+    ul {
+      font-size:12px;
+      opacity:0.6;
+      margin-top:4px;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="card">
+
+      <h1>Registrazione</h1>
+      <p class="sub">Crea un account per poter prenotare gli sdrai.</p>
+
+      {% if form.errors %}
+        <div class="err">
+          Controlla i campi: ci sono errori nella registrazione.
+        </div>
+      {% endif %}
+
+      <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn" type="submit">Crea account</button>
+      </form>
+
+      <div class="links">
+        Hai già un account?
+        <a href="{% url 'login' %}">Accedi</a>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>
