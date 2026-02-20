@@ -9,32 +9,79 @@
     <link rel="icon" href="{% static 'pren/favicon.ico' %}">
 
     <style>
-        html,
-        body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-        }
+        html, body { margin: 0; padding: 0; height: 100%; }
+        body { display: flex; flex-direction: column; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
 
-        body {
-            display: flex;
-            flex-direction: column;
-        }
-
-        header {
+        /* HEADER */
+        header{
             flex: 0 0 auto;
             z-index: 2;
             margin: 0;
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
             align-items: center;
-            background-color: #b9b9b91e;
-            gap: 10px;
-            padding: 10px;
+            gap: 14px;
+            padding: 12px 16px;
             flex-wrap: wrap;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
         }
 
-        .area-piscina {
+        header h1{
+            margin: 0;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: .2px;
+        }
+
+        header h2{
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            opacity: .85;
+        }
+
+        header a{
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 10px;
+            border-radius: 10px;
+            color: #111;
+            background: rgba(0,0,0,0.06);
+        }
+
+        header a:hover{ background: rgba(0,0,0,0.10); }
+
+        /* BOTTONI */
+        button{
+            border: 0;
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-weight: 700;
+            cursor: pointer;
+            background: rgba(0,0,0,0.08);
+            color: #111;
+            transition: transform .06s ease, background .15s ease;
+        }
+        button:hover{ background: rgba(0,0,0,0.12); }
+        button:active{ transform: translateY(1px); }
+
+        /* Varianti */
+        .btn-primary{
+            background: #111;
+            color: #fff;
+        }
+        .btn-primary:hover{ background: #222; }
+
+        .btn-danger{
+            background: #e74c3c;
+            color: #fff;
+        }
+        .btn-danger:hover{ background: #d64536; }
+
+        /* LAYOUT / AREE */
+        .area-piscina{
             position: relative;
             flex: 1 1 auto;
             width: 100%;
@@ -42,64 +89,112 @@
             z-index: 1;
         }
 
-        .img-piscina {
+        .img-piscina{
             width: 100%;
             height: 100%;
             object-fit: contain;
             display: block;
         }
 
-        .overlay {
+        .overlay{
             position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
             z-index: 2;
         }
 
-        .sdraio {
+        /* SDRAI (solo estetica leggera, non cambia logica) */
+        .sdraio{
             position: absolute;
             transform: translate(-50%, -50%);
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
             background: #2c7be5;
             color: white;
             font-size: 12px;
             display: grid;
             place-items: center;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
+            box-shadow: 0 10px 22px rgba(0,0,0,.18);
             user-select: none;
             cursor: grab;
         }
 
-        .sdraio.selezionata {
-            outline: 3px solid #000;
-            transform: translate(-50%, -50%) scale(1.15);
+        .sdraio.selezionata{
+            outline: 3px solid rgba(0,0,0,.9);
+            transform: translate(-50%, -50%) scale(1.12);
             z-index: 10;
         }
 
-        .sdraio.ai {
-            outline: 2px solid #1e90ff;
-        }
+        .sdraio.ai{ outline: 2px solid rgba(30,144,255,.95); }
+        .sdraio.manuale{ outline: 2px solid rgba(46,204,113,.95); }
 
-        .sdraio.manuale {
-            outline: 2px solid #2ecc71;
-        }
-
-        /* 🔴 occupato in UI */
-        .sdraio.occupato {
+        .sdraio.occupato{
             background: #e74c3c;
             outline: 2px solid #c0392b;
         }
-
-        .sdraio.occupato::after {
+        .sdraio.occupato::after{
             content: "⛔";
             font-size: 12px;
             position: absolute;
             right: -10px;
             top: -10px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,.25));
+        }
+
+        /* BOOKING BAR (quando compare) */
+        #booking-bar{
+            display: none;
+            padding: 12px 14px;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        #booking-bar label{ font-size: 12px; opacity: .8; }
+        #booking-bar select,
+        #booking-bar input{
+            margin-top: 6px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(0,0,0,0.12);
+            background: rgba(255,255,255,0.9);
+            outline: none;
+            min-width: 220px;
+            font-weight: 600;
+        }
+        #booking-bar select:focus,
+        #booking-bar input:focus{
+            border-color: rgba(0,0,0,0.3);
+        }
+
+        #booking-actions{
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        #booking-msg{
+            opacity: .9;
+            min-height: 18px;
+            font-weight: 600;
+        }
+
+        /* TRASH AREA */
+        #trash-area{
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            border-radius: 14px;
+            margin: 10px 12px;
+            background: rgba(231,76,60,0.10);
+            border: 2px dashed rgba(231,76,60,0.65);
+            color: rgba(0,0,0,0.75);
         }
     </style>
 </head>
@@ -117,17 +212,19 @@
         {% if can_drag %}
             <form id="form-rigenera" method="post" style="display:inline;">
                 {% csrf_token %}
-                <button type="button" id="btn-rigenera">
-                    Rileva sdrai (AI)
-                </button>
+                <button type="button" id="btn-rigenera" class="btn-primary">Rileva sdrai (AI)</button>
             </form>
 
             <form id="form-crea-sdraio" method="post" style="display:inline;">
                 {% csrf_token %}
-                <button type="button" id="btn-crea-sdraio">
-                    + Aggiungi sdraio
-                </button>
+                <button type="button" id="btn-crea-sdraio">+ Aggiungi sdraio</button>
             </form>
+        {% endif %}
+
+        {% if can_book %}
+            <div style="opacity:.85;">
+                Doppio click su uno sdraio per prenotare — <span style="color:#e74c3c;font-weight:bold;">rosso = occupato</span>
+            </div>
         {% endif %}
 
         <div>
@@ -146,7 +243,7 @@
     </header>
 
     {% if piscina and can_book %}
-    <div style="padding: 10px; background: #ffffffc7; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+    <div id="booking-bar">
         <div>
             <label for="tipo_durata"><b>Durata</b></label><br>
             <select id="tipo_durata">
@@ -158,12 +255,15 @@
 
         <div>
             <label for="inizio"><b>Inizio</b></label><br>
-            <input id="inizio" type="datetime-local">
+            <input id="inizio" type="datetime-local" autocomplete="off">
         </div>
 
-        <div style="opacity:.8;">
-            Doppio click su uno sdraio per prenotare — <span style="color:#e74c3c;font-weight:bold;">rosso = occupato</span>
+        <div id="booking-actions">
+            <button type="button" id="btn-conferma" class="btn-primary">Conferma</button>
+            <button type="button" id="btn-annulla" class="btn-danger">Annulla</button>
         </div>
+
+        <div id="booking-msg"></div>
     </div>
     {% endif %}
 
@@ -208,7 +308,7 @@
         window.PISCINA_ID = {{ piscina.id }};
     </script>
 
-    <script src="{% static 'pren/js/overlay_piscina.js' %}"></script>
+    <script src="{% static 'pren/js/overlay_piscina.js' %}?v=2"></script>
 
 </body>
 </html>
