@@ -2,6 +2,7 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from datetime import timedelta
 
 
@@ -14,7 +15,7 @@ class TipoDurata(models.TextChoices):
 
 DURATA_MINUTI = {
     TipoDurata.ORA_1: 60,
-    TipoDurata.ORE_3: 180,          
+    TipoDurata.ORE_3: 180,
     TipoDurata.MEZZA_GIORNATA: 240,
     TipoDurata.GIORNATA_INTERA: 480,
 }
@@ -52,6 +53,14 @@ class Prenotazione(models.Model):
         if not self.inizio:
             raise ValidationError("Devi scegliere una data/ora di inizio.")
 
+        # ✅ blocco prenotazione nel passato
+        if timezone.is_naive(self.inizio):
+            self.inizio = timezone.make_aware(self.inizio)
+
+        now = timezone.now()
+        if self.inizio < now:
+            raise ValidationError("Non puoi prenotare nel passato.")
+
         minuti = DURATA_MINUTI.get(self.tipo_durata)
         if minuti is None:
             raise ValidationError("Tipo durata non valido.")
@@ -70,18 +79,11 @@ class Prenotazione(models.Model):
             raise ValidationError("Questo sdraio è già prenotato nel periodo selezionato.")
 
     def save(self, *args, **kwargs):
-        self.full_clean()  # calcola fine + controlla conflitti
+        self.full_clean()  # calcola fine + controlla conflitti + passato
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.utente} -> {self.sdraio} {self.get_tipo_durata_display()} {self.inizio:%d/%m %H:%M}-{self.fine:%H:%M}"
-
-
-
-
-
-
-
 
 
 class Piscina(models.Model):
@@ -91,6 +93,7 @@ class Piscina(models.Model):
     def __str__(self):
         return self.nome
 
+
 class ImmaginePiscina(models.Model):
     piscina = models.OneToOneField(
         Piscina,
@@ -99,12 +102,11 @@ class ImmaginePiscina(models.Model):
     )
 
     immagine = models.ImageField(upload_to="immagini_piscine/")
-    
     caricata_il = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Immagine - {self.piscina.nome}"
-    
+
 
 class Sdraio(models.Model):
     ORIGINE_SCELTE = [
@@ -138,4 +140,3 @@ class Sdraio(models.Model):
 
     def __str__(self):
         return f"{self.piscina.nome} - {self.etichetta or f'Sdraio #{self.pk}'}"
-    

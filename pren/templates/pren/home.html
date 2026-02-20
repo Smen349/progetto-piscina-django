@@ -29,6 +29,9 @@
             justify-content: space-around;
             align-items: center;
             background-color: #b9b9b91e;
+            gap: 10px;
+            padding: 10px;
+            flex-wrap: wrap;
         }
 
         .area-piscina {
@@ -84,6 +87,20 @@
         .sdraio.manuale {
             outline: 2px solid #2ecc71;
         }
+
+        /* 🔴 occupato in UI */
+        .sdraio.occupato {
+            background: #e74c3c;
+            outline: 2px solid #c0392b;
+        }
+
+        .sdraio.occupato::after {
+            content: "⛔";
+            font-size: 12px;
+            position: absolute;
+            right: -10px;
+            top: -10px;
+        }
     </style>
 </head>
 
@@ -104,28 +121,31 @@
                     Rileva sdrai (AI)
                 </button>
             </form>
-        {% endif %}
 
+            <form id="form-crea-sdraio" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="button" id="btn-crea-sdraio">
+                    + Aggiungi sdraio
+                </button>
+            </form>
+        {% endif %}
 
         <div>
-        {% if user.is_authenticated %}
-            <span>Ciao, {{ user.username }}</span>
+            {% if user.is_authenticated %}
+                <span>Ciao, {{ user.username }}</span>
 
-            <form action="{% url 'logout' %}" method="post" style="display:inline;">
-                {% csrf_token %}
-
-                <button type="submit">Logout</button>
-            </form>
+                <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit">Logout</button>
+                </form>
             {% else %}
-            <a href="{% url 'login' %}">Login</a>
-            <a href="{% url 'signup' %}">Registrati</a>
-        {% endif %}
-
+                <a href="{% url 'login' %}">Login</a>
+                <a href="{% url 'signup' %}">Registrati</a>
+            {% endif %}
         </div>
-
     </header>
 
-    {% if piscina and can_book%}
+    {% if piscina and can_book %}
     <div style="padding: 10px; background: #ffffffc7; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         <div>
             <label for="tipo_durata"><b>Durata</b></label><br>
@@ -142,7 +162,7 @@
         </div>
 
         <div style="opacity:.8;">
-            Doppio click su uno sdraio per prenotare
+            Doppio click su uno sdraio per prenotare — <span style="color:#e74c3c;font-weight:bold;">rosso = occupato</span>
         </div>
     </div>
     {% endif %}
@@ -191,5 +211,4 @@
     <script src="{% static 'pren/js/overlay_piscina.js' %}"></script>
 
 </body>
-
 </html>

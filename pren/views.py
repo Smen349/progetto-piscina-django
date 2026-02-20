@@ -1,14 +1,17 @@
 import json
+
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, render, redirect
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
+
 from .servizi.rilevamento_sdrai import rileva_sdrai_da_immagine
-from .models import Piscina, Sdraio, DurataDisponibile, Prenotazione
+from .models import Piscina, Sdraio, DurataDisponibile, Prenotazione, DURATA_MINUTI
 
 
 @staff_member_required
@@ -33,10 +36,9 @@ def rigenera_sdrai(request, piscina_id):
 
     percorso_img = piscina.immagine.immagine.path
 
-    # 🔥 Cancella TUTTI gli sdrai (anche manuali)
+    # 🔥 Cancella TUTTI gli sdrai (anche manuali) - come nel tuo progetto attuale
     Sdraio.objects.filter(piscina=piscina).delete()
 
-    # Rilevamento
     sdrai_rilevati = rileva_sdrai_da_immagine(percorso_img, conf_min=0.30)
 
     for idx, s in enumerate(sdrai_rilevati, start=1):
@@ -50,8 +52,53 @@ def rigenera_sdrai(request, piscina_id):
 
     return JsonResponse({"ok": True, "creati": len(sdrai_rilevati)})
 
+
+@staff_member_required
+@require_POST
+def crea_sdraio(request, piscina_id):
+    """
+    Crea uno sdraio MANUALE (uno alla volta). Default 50%,50%.
+    Accetta JSON opzionale: {x_percentuale, y_percentuale}
+    """
+    piscina = get_object_or_404(Piscina, id=piscina_id)
+
+    x = 50.0
+    y = 50.0
+    try:
+        if request.body:
+            payload = json.loads(request.body.decode("utf-8"))
+            if "x_percentuale" in payload:
+                x = float(payload["x_percentuale"])
+            if "y_percentuale" in payload:
+                y = float(payload["y_percentuale"])
+    except Exception:
+        pass
+
+    x = max(0.0, min(100.0, x))
+    y = max(0.0, min(100.0, y))
+
+    manuali_count = Sdraio.objects.filter(piscina=piscina, origine="MANUALE").count()
+    etichetta = f"M-{manuali_count + 1:03d}"
+
+    sdraio = Sdraio.objects.create(
+        piscina=piscina,
+        x_percentuale=x,
+        y_percentuale=y,
+        origine="MANUALE",
+        etichetta=etichetta,
+    )
+
+    return JsonResponse({
+        "ok": True,
+        "id": sdraio.id,
+        "x_percentuale": sdraio.x_percentuale,
+        "y_percentuale": sdraio.y_percentuale,
+        "origine": sdraio.origine,
+        "etichetta": sdraio.etichetta,
+    })
+
+
 def home(request):
-    # Piscina attiva (fallback: ultima)
     piscina = Piscina.objects.filter(attiva=True).first() or Piscina.objects.last()
 
     sdrai = piscina.sdrai.all() if piscina else []
@@ -66,7 +113,6 @@ def home(request):
         "can_drag": is_staff,
         "can_book": request.user.is_authenticated and not is_staff,
     })
-
 
 
 @require_POST
@@ -92,7 +138,6 @@ def aggiorna_sdraio(request, sdraio_id):
     except (TypeError, ValueError):
         return JsonResponse({"ok": False, "errore": "Coordinate non valide"}, status=400)
 
-    # clamp opzionale (evita valori strani)
     x = max(0.0, min(100.0, x))
     y = max(0.0, min(100.0, y))
 
@@ -110,41 +155,74 @@ def aggiorna_sdraio(request, sdraio_id):
     })
 
 
+@require_GET
+@login_required
+def sdrai_occupati(request, piscina_id):
+    """
+    Ritorna lista ID sdrai occupati nell'intervallo selezionato.
+    Query params:
+      - inizio=YYYY-MM-DDTHH:MM
+      - tipo_durata=...
+    """
+    piscina = get_object_or_404(Piscina, id=piscina_id)
+
+    inizio_str = request.GET.get("inizio")
+    tipo_durata = request.GET.get("tipo_durata")
+
+    if not inizio_str or not tipo_durata:
+        return JsonResponse({"errore": "Parametri mancanti"}, status=400)
+
+    if not DurataDisponibile.objects.filter(piscina=piscina, tipo=tipo_durata, attiva=True).exists():
+        return JsonResponse({"errore": "Durata non disponibile per questa piscina."}, status=400)
+
+    try:
+        inizio = timezone.datetime.fromisoformat(inizio_str)
+    except Exception:
+        return JsonResponse({"errore": "Formato data/ora non valido."}, status=400)
+
+    if timezone.is_naive(inizio):
+        inizio = timezone.make_aware(inizio)
+
+    minuti = DURATA_MINUTI.get(tipo_durata)
+    if minuti is None:
+        return JsonResponse({"errore": "Tipo durata non valido."}, status=400)
+
+    fine = inizio + timezone.timedelta(minutes=minuti)
+
+    occupati = Prenotazione.objects.filter(
+        piscina=piscina,
+        inizio__lt=fine,
+        fine__gt=inizio,
+    ).values_list("sdraio_id", flat=True).distinct()
+
+    return JsonResponse({"occupati": list(occupati)})
+
+
 @login_required
 def prenota_sdraio(request, sdraio_id):
-    """
-    Prenotazione: l'utente sceglie
-    - tipo_durata (una delle DurataDisponibile attive per la piscina)
-    - inizio (datetime-local)
-    e clicca su uno sdraio.
-    """
     if request.method != "POST":
-        return HttpResponseBadRequest("Metodo non consentito.")
+        return JsonResponse({"ok": False, "errore": "Metodo non consentito."}, status=405)
 
     piscina = Piscina.objects.filter(attiva=True).first() or Piscina.objects.last()
     if not piscina:
-        return HttpResponseBadRequest("Nessuna piscina disponibile.")
+        return JsonResponse({"ok": False, "errore": "Nessuna piscina disponibile."}, status=400)
 
-    # lo sdraio deve appartenere alla piscina corrente
     sdraio = get_object_or_404(Sdraio, pk=sdraio_id, piscina=piscina)
 
     tipo_durata = request.POST.get("tipo_durata")
     inizio_str = request.POST.get("inizio")
 
     if not tipo_durata or not inizio_str:
-        return HttpResponseBadRequest("Seleziona durata e data/ora di inizio.")
+        return JsonResponse({"ok": False, "errore": "Seleziona durata e data/ora di inizio."}, status=400)
 
-    # durata deve essere attiva per questa piscina
     if not DurataDisponibile.objects.filter(piscina=piscina, tipo=tipo_durata, attiva=True).exists():
-        return HttpResponseBadRequest("Durata non disponibile per questa piscina.")
+        return JsonResponse({"ok": False, "errore": "Durata non disponibile per questa piscina."}, status=400)
 
-    # datetime-local arriva come "YYYY-MM-DDTHH:MM"
     try:
         inizio = timezone.datetime.fromisoformat(inizio_str)
     except Exception:
-        return HttpResponseBadRequest("Formato data/ora non valido.")
+        return JsonResponse({"ok": False, "errore": "Formato data/ora non valido."}, status=400)
 
-    # rendi timezone-aware se necessario
     if timezone.is_naive(inizio):
         inizio = timezone.make_aware(inizio)
 
@@ -157,14 +235,18 @@ def prenota_sdraio(request, sdraio_id):
     )
 
     try:
-        # qui clean() blocca sovrapposizioni
         pren.save()
+    except ValidationError as e:
+        msg = "; ".join(e.messages) if hasattr(e, "messages") else str(e)
+
+        if "già prenotato" in msg.lower():
+            return JsonResponse({"ok": False, "errore": msg}, status=409)
+
+        return JsonResponse({"ok": False, "errore": msg}, status=400)
     except Exception as e:
-        return HttpResponseBadRequest(str(e))
+        return JsonResponse({"ok": False, "errore": str(e)}, status=400)
 
-    return redirect("home")
-
-
+    return JsonResponse({"ok": True})
 
 
 def signup(request):
